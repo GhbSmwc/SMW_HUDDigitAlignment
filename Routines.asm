@@ -20,7 +20,7 @@ incsrc "../DisplayStringDefines/Defines.asm"
 ;code before "else") if you are going to have values that large.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ConvertToDigits:
-	if !Sa1 == 0
+	if !sa1 == 0
 		PHX
 		PHY
 
@@ -74,7 +74,7 @@ ConvertToDigits:
 		PLX
 		RTL
 	endif
-if !Sa1 != 0
+if !sa1 != 0
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; 16bit / 16bit Division
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -111,7 +111,7 @@ endif
 ;   8x8 tile, using my 4/5 hexdec routine; ordered from high to low digits)
 ;  -X = the location within the table to place the string in.
 ; Output:
-;  -!Scratchram_TileTable = A table containing a string of numbers with
+;  -!Scratchram_CharacterTileTable = A table containing a string of numbers with
 ;   unnecessary spaces and zeroes stripped out.
 ;  -X = the location to place string AFTER the numbers. Also use for
 ;   indicating the last digit (or any tile) number for how many tiles to
@@ -139,7 +139,7 @@ LeftAlignedDigit:
 	;would be the first "*" (X = 3) for additional characters.
 	LDY #$00			;>Start looking at the leftmost (highest) digit
 	LDA #$00			;\When the value is 0, display it as single digit as zero
-	STA !Scratchram_TileTable,x	;/(gets overwritten should nonzero input exist)
+	STA !Scratchram_CharacterTileTable,x	;/(gets overwritten should nonzero input exist)
 
 	.Loop
 	LDA.w !HexDecDigitTable|!dp,Y	;\If there is a leading zero, move to the next digit to check without moving the position to
@@ -147,7 +147,7 @@ LeftAlignedDigit:
 	
 	..FoundDigit
 	LDA.w !HexDecDigitTable|!dp,Y	;\Place digit
-	STA !Scratchram_TileTable,x	;/
+	STA !Scratchram_CharacterTileTable,x	;/
 	INX				;>Next string position in table
 	INY				;\Next digit
 	CPY #$05			;|
@@ -176,7 +176,7 @@ WriteToHUDLeftAligned:
 	TXY
 	
 	.Loop
-	LDA !Scratchram_TileTable,x
+	LDA !Scratchram_CharacterTileTable,x
 	STA [$00],y
 	if !StatusBar_UsingCustomProperties != 0
 		LDA $06
@@ -193,7 +193,7 @@ WriteToHUDLeftAlignedFormat2:
 	TAY				;/
 	
 	.Loop
-	LDA !Scratchram_TileTable,x
+	LDA !Scratchram_CharacterTileTable,x
 	STA [$00],y
 	if !StatusBar_UsingCustomProperties != 0
 		LDA $06
