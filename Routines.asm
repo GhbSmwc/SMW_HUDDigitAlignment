@@ -119,22 +119,34 @@ endif
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 LeftAlignedDigit:
 	;Y index is used for searching until the first nonzero digit of a number
-	;string. For example: 00123:
+	;string. For example: 00123 with X = 0:
 	;Y = 0, which is the leftmost digit, obtains a "0": [{0} 0  1  2  3]
+	;      (X only increments after the first nonzero digit is found).
 	;Y = 1, which points to the second "0":             [ 0 {0} 1  2  3]
 	;Y = 2, which points to the third digit "1"         [ 0  0 {1} 2  3]
-	;Now it starts writing the subsequent digits after.
-	
+	;Now it starts writing the subsequent digits after (you must use
+	;fixed-width font for proper viewing ASCII art here):
+	;[ 0  0  1  2  3]
+	;        |  |  |
+	;  +-----+  |  |
+	;  |  +-----+  |
+	;  |  |  +-----+
+	;  |  |  |
+	;[ 1  2  3  *  *]
+	;Each time it places a digit, it increments X to place the next digit.
+	;Just before the routine ends, X increment +1 again after the last
+	;character, in the example above with 00123 turning into 123, it
+	;would be the first "*" (X = 3) for additional characters.
 	LDY #$00			;>Start looking at the leftmost (highest) digit
 	LDA #$00			;\When the value is 0, display it as single digit as zero
 	STA !Scratchram_TileTable,x	;/(gets overwritten should nonzero input exist)
 
 	.Loop
-	LDA.w !HexDecDigitTable|!dp,Y			;\If there is a leading zero, move to the next digit to check without moving the position to
+	LDA.w !HexDecDigitTable|!dp,Y	;\If there is a leading zero, move to the next digit to check without moving the position to
 	BEQ ..NextDigit			;/place the tile in the table
 	
 	..FoundDigit
-	LDA.w !HexDecDigitTable|!dp,Y			;\Place digit
+	LDA.w !HexDecDigitTable|!dp,Y	;\Place digit
 	STA !Scratchram_TileTable,x	;/
 	INX				;>Next string position in table
 	INY				;\Next digit
