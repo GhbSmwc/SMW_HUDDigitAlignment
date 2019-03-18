@@ -18,6 +18,13 @@ endif
  ;^Number of grouped bytes per 8x8 tile:
  ; $01 = Minimalist/SMB3 [TTTTTTTT, TTTTTTTT]...[YXPCCCTT, YXPCCCTT]
  ; $02 = Super status bar/Overworld border plus [TTTTTTTT YXPCCCTT, TTTTTTTT YXPCCCTT]...
+ 
+!StatusBar_UsingCustomProperties           = 0
+ ;^Set this to 0 if you are using the vanilla SMW status bar or any status bar patches
+ ; that doesn't enable editing the tile properties, otherwise set this to 1 (you may
+ ; have to edit "!Default_GraphicalBarProperties" in order for it to work though.).
+ ; This define is needed to prevent writing what it assumes tile properties into invalid
+ ; RAM addresses.
 
 if !sa1 == 0
  !StatusBarPos = $7FA000

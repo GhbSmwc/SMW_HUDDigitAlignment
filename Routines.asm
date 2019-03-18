@@ -160,3 +160,46 @@ LeftAlignedDigit:
 	BCC .Loop		;/
 	INX			;>Next item in table
 	RTL
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Write to Status bar/OWB+ (left aligned)
+;
+;Input:
+; -$00-$02 = 24-bit address location to write to status bar tile number.
+; -If tile properties are edit-able:
+; --$03-$05 = Same as $00-$02 but tile properties.
+; --$06 = the tile properties.
+; -X = The number of characters to write, ("123" would have X = 3)
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WriteToHUDLeftAligned:
+	DEX
+	TXY
+	
+	.Loop
+	LDA !Scratchram_TileTable,x
+	STA [$00],y
+	if !StatusBar_UsingCustomProperties != 0
+		LDA $06
+		STA [$03],y
+	endif
+	DEX
+	DEY
+	BPL .Loop
+	RTL
+WriteToHUDLeftAlignedFormat2:
+	DEX
+	TXA				;\SSB and OWB+ uses a byte pair format.
+	ASL				;|
+	TAY				;/
+	
+	.Loop
+	LDA !Scratchram_TileTable,x
+	STA [$00],y
+	if !StatusBar_UsingCustomProperties != 0
+		LDA $06
+		STA [$03],y
+	endif
+	DEX
+	DEY #2
+	BPL .Loop
+	RTL
