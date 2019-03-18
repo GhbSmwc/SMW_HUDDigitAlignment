@@ -1,3 +1,23 @@
+;SA-1 detection (don't touch)
+if defined("sa1") == 0
+	!dp = $0000
+	!addr = $0000
+	!sa1 = 0
+	!gsu = 0
+
+	if read1($00FFD6) == $15
+		sfxrom
+		!dp = $6000
+		!addr = !dp
+		!gsu = 1
+	elseif read1($00FFD5) == $23
+		sa1rom
+		!dp = $3000
+		!addr = $6000
+		!sa1 = 1
+	endif
+endif
+
 ;RAM locations
 if !sa1 == 0
  !Scratchram_CharacterTileTable = $7F844A
@@ -36,26 +56,7 @@ endif
 !BlankTile = $FC
  ;^Tile number for where there is no characters to be written for each 8x8 space.
 
-if defined(sa1) == 0
-	!dp = $0000
-	!addr = $0000
-	!sa1 = 0
-	!gsu = 0
-
-	if read1($00FFD6) == $15
-		sfxrom
-		!dp = $6000
-		!addr = !dp
-		!gsu = 1
-	elseif read1($00FFD5) == $23
-		sa1rom
-		!dp = $3000
-		!addr = $6000
-		!sa1 = 1
-	endif
-endif
-
 !HexDecDigitTable = $02
-if !Sa1 != 0
+if !sa1 != 0
 	!HexDecDigitTable = $04
 endif
