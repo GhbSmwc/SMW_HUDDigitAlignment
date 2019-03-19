@@ -1,4 +1,7 @@
 incsrc "../DisplayStringDefines/Defines.asm"
+
+!MaxChar	= 11
+
 main:
 
 	LDA $15
@@ -51,9 +54,9 @@ main:
 	
 	.StatusBarRemoveFrozenTiles
 	LDA #$FC
-	LDX.b #(5-1)*2
+	LDX.b #(!MaxChar-1)*2
 	-
-	STA !StatusBarPos,x
+	STA !StatusBarPos-((!MaxChar-1)*2),x
 	DEX #2
 	BPL -
 	
@@ -63,8 +66,16 @@ main:
 	JSL Routines_ConvertToDigits
 	LDX #$00
 	JSL Routines_LeftAlignedDigit
+	LDA #$26
+	STA !Scratchram_CharacterTileTable,x
+	INX
+	LDA $62 : STA $00
+	LDA $63 : STA $01
+	JSL Routines_ConvertToDigits
+	JSL Routines_LeftAlignedDigit
 	LDA.b #!StatusBarPos : STA $00
 	LDA.b #!StatusBarPos>>8 : STA $01
 	LDA.b #!StatusBarPos>>16 : STA $02
+	JSL Routines_ConvertToRightAlignedFormat2
 	JSL Routines_WriteToHUDLeftAlignedFormat2
 	RTL
