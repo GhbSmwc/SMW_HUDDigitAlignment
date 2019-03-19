@@ -46,13 +46,6 @@ endif
  ; This define is needed to prevent writing what it assumes tile properties into invalid
  ; RAM addresses.
 
-if !sa1 == 0
- !StatusBarPos = $7FA000
-else
- !StatusBarPos = $404000
-endif
- ;^Status bar position to write. Redefineable.
-
 !BlankTile = $FC
  ;^Tile number for where there is no characters to be written for each 8x8 space.
 
