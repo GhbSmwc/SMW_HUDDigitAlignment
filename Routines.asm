@@ -16,8 +16,8 @@ incsrc "../DisplayStringDefines/Defines.asm"
 ;
 ;Note: Because SA-1's multiplication/division registers are signed,
 ;values over 32,767 ($7FFF) will glitch when you patch SA-1 on your
-;game. So make it stop being in the SA-1 dimension (by only using the
-;code before "else") if you are going to have values that large.
+;game. Therefore, I added a Sa-1 detection to use an unsigned division
+;as the SNES registers become inaccessible on SA-1 mode.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ConvertToDigits:
 	if !sa1 == 0
@@ -76,7 +76,7 @@ ConvertToDigits:
 	endif
 if !sa1 != 0
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	; 16bit / 16bit Division
+	; unsigned 16bit / 16bit Division
 	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	; Arguments
 	; $00-$01 : Dividend
@@ -102,13 +102,30 @@ if !sa1 != 0
 			RTL
 endif
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Left-aligned number display (single number). Useful for removing leading
-;spaces in the digits (so if it tries to display [---3], it's displayed as
-;[3***] where * indicates garbage (unwritten) bytes).
+;Suppress Leading zeros via left-aligned positioning
 ;
+;This routines takes a 16-bit unsigned integer (works up to 5 digits),
+;suppress leading zeros and moves the digits so that the first non-zero
+;digit number is located where X is indexed to. Example: the number 00123
+;with X = $00:
+;
+; [0] [0] [1] [2] [3]
+;
+; Each bracketed item is a byte storing a digit. The X above means the X
+; index position.
+; After this routine is done, they are placed in an address defined
+; as "!Scratchram_CharacterTileTable" like this:
+;
+;              X
+; [1] [2] [3] [*] [*]...
+;
+; [*] Means garbage and/or unused data. X index is now set to $03, shown
+; above.
+;
+;Usage:
 ; Input:
-;  -!HexDecDigitTable to !HexDecDigitTable+6 = a digit 0-9 per byte (used for 1-digit per
-;   8x8 tile, using my 4/5 hexdec routine; ordered from high to low digits)
+;  -!HexDecDigitTable to !HexDecDigitTable+4 = a 5-digit 0-9 per byte (used for
+;   1-digit per 8x8 tile, using my 4/5 hexdec routine; ordered from high to low digits)
 ;  -X = the location within the table to place the string in.
 ; Output:
 ;  -!Scratchram_CharacterTileTable = A table containing a string of numbers with
@@ -117,41 +134,22 @@ endif
 ;   indicating the last digit (or any tile) number for how many tiles to
 ;   be written to the status bar, overworld border, etc.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-LeftAlignedDigit:
-	;Y index is used for searching until the first nonzero digit of a number
-	;string. For example: 00123 with X = 0:
-	;Y = 0, which is the leftmost digit, obtains a "0": [{0} 0  1  2  3]
-	;      (X only increments after the first nonzero digit is found).
-	;Y = 1, which points to the second "0":             [ 0 {0} 1  2  3]
-	;Y = 2, which points to the third digit "1"         [ 0  0 {1} 2  3]
-	;Now it starts writing the subsequent digits after (you must use
-	;fixed-width font for proper viewing ASCII art here):
-	;[ 0  0  1  2  3]
-	;        |  |  |
-	;  +-----+  |  |
-	;  |  +-----+  |
-	;  |  |  +-----+
-	;  |  |  |
-	;[ 1  2  3  *  *] - (X = 3)
-	;Each time it places a digit, it increments X to place the next digit.
-	;Just before the routine ends, X increment +1 again after the last
-	;character, in the example above with 00123 turning into 123, it
-	;would be the first "*" (X = 3) for additional characters.
-	LDY #$00			;>Start looking at the leftmost (highest) digit
-	LDA #$00			;\When the value is 0, display it as single digit as zero
+SupressLeadingZeros:
+	LDY #$00				;>Start looking at the leftmost (highest) digit
+	LDA #$00				;\When the value is 0, display it as single digit as zero
 	STA !Scratchram_CharacterTileTable,x	;/(gets overwritten should nonzero input exist)
 
 	.Loop
-	LDA.w !HexDecDigitTable|!dp,Y	;\If there is a leading zero, move to the next digit to check without moving the position to
-	BEQ ..NextDigit			;/place the tile in the table
+	LDA.w !HexDecDigitTable|!dp,Y		;\If there is a leading zero, move to the next digit to check without moving the position to
+	BEQ ..NextDigit				;/place the tile in the table
 	
 	..FoundDigit
-	LDA.w !HexDecDigitTable|!dp,Y	;\Place digit
+	LDA.w !HexDecDigitTable|!dp,Y		;\Place digit
 	STA !Scratchram_CharacterTileTable,x	;/
-	INX				;>Next string position in table
-	INY				;\Next digit
-	CPY #$05			;|
-	BCC ..FoundDigit		;/
+	INX					;>Next string position in table
+	INY					;\Next digit
+	CPY #$05				;|
+	BCC ..FoundDigit			;/
 	RTL
 	
 	..NextDigit
@@ -163,8 +161,12 @@ LeftAlignedDigit:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Convert left-aligned to right-aligned.
 ;
-;Use this routine after calling LeftAlignedDigit and before calling
-;WriteToHUDLeftAligned.
+;Use this routine after calling SupressLeadingZeros and before calling
+;WriteStringDigitsToHUD. Note: Be aware that the math of handling the address
+;does NOT account to changing the bank byte (address $XX****), so be aware of
+;having status bar tables that crosses bank borders ($7EFFFF, then $7F0000,
+;as an made-up example, but its unlikely though).
+;
 ;Input:
 ; -$00-$02 = 24-bit address location to write to status bar tile number.
 ; -If tile properties are edit-able:
@@ -227,7 +229,7 @@ ConvertToRightAlignedFormat2:
 ; -X = The number of characters to write, ("123" would have X = 3)
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-WriteToHUDLeftAligned:
+WriteStringDigitsToHUD:
 	DEX
 	TXY
 	
@@ -242,7 +244,7 @@ WriteToHUDLeftAligned:
 	DEY
 	BPL .Loop
 	RTL
-WriteToHUDLeftAlignedFormat2:
+WriteStringDigitsToHUDFormat2:
 	DEX
 	TXA				;\SSB and OWB+ uses a byte pair format.
 	ASL				;|
