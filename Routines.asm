@@ -132,7 +132,7 @@ LeftAlignedDigit:
 	;  |  +-----+  |
 	;  |  |  +-----+
 	;  |  |  |
-	;[ 1  2  3  *  *]
+	;[ 1  2  3  *  *] - (X = 3)
 	;Each time it places a digit, it increments X to place the next digit.
 	;Just before the routine ends, X increment +1 again after the last
 	;character, in the example above with 00123 turning into 123, it
@@ -161,7 +161,63 @@ LeftAlignedDigit:
 	INX			;>Next item in table
 	RTL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Write to Status bar/OWB+ (left aligned)
+;Convert left-aligned to right-aligned.
+;
+;Use this routine after calling LeftAlignedDigit and before calling
+;WriteToHUDLeftAligned.
+;Input:
+; -$00-$02 = 24-bit address location to write to status bar tile number.
+; -If tile properties are edit-able:
+; --$03-$05 = Same as $00-$02 but tile properties.
+; --$06 = the tile properties.
+; -X = The number of characters to write, ("123" would have X = 3)
+;Output:
+; -$00-$02 and $03-$05 are subtracted by [(NumberOfCharacters-1)*!StatusbarFormat]
+;  so that the last character is always at a fixed location and as the number
+;  of characters increase, the string would extend leftwards. Therefore,
+;  $00-$02 and $03-$05 before calling this routine contains the ending address
+;  which the last character will be written.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ConvertToRightAligned:
+	TXA
+	DEC
+	TAY					;>Transfer status bar leftmost position to Y
+	BRA +
+ConvertToRightAlignedFormat2:
+	TXA
+	DEC
+	ASL
+	TAY					;>Transfer status bar leftmost position to Y
+	+
+	REP #$21				;\-(NumberOfTiles-1)...
+	AND #$00FF				;|
+	EOR #$FFFF				;|
+	INC A					;/
+	ADC $00					;>...+LastTilePos (we are doing LastTilePos - (NumberOfTiles-1))
+	STA $00					;>Store difference in $00-$01
+	SEP #$20				;\Handle bank byte
+;	LDA $02					;|
+;	SBC #$00				;|
+;	STA $02					;/
+	
+	if !StatusBar_UsingCustomProperties != 0
+		TYA
+		DEC
+		ASL
+		REP #$21				;\-(NumberOfTiles-1)
+		AND #$00FF				;|
+		EOR #$FFFF				;|
+		INC A					;/
+		ADC $03					;>+LastTilePos (we are doing LastTilePos - (NumberOfTiles-1))
+		STA $03					;>Store difference in $00-$01
+		SEP #$20				;\Handle bank byte
+;		LDA $05					;|
+;		SBC #$00				;|
+;		STA $05					;/
+	endif
+	RTL
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Write aligned digits to Status bar/OWB+
 ;
 ;Input:
 ; -$00-$02 = 24-bit address location to write to status bar tile number.
