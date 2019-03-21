@@ -7,6 +7,10 @@ incsrc "../DisplayStringDefines/Defines.asm"
 !AlignMode	= 1
  ;0 = left-aligned
  ;1 = right-aligned
+ 
+!Freeram_FirstNumb	= $60
+!Freeram_SecondNumb	= $62
+ ;^[2 bytes] the numbers to be displayed.
 
 if !AlignMode == 0
  if !sa1 == 0
@@ -26,26 +30,26 @@ endif
 
 main:
 
-	LDA $15
-	BIT.b #%00001000
-	BNE .Up
-	BIT.b #%00000100
-	BNE .Down
+	LDA $15			;\These are to increase or decrease number via controller
+	BIT.b #%00001000	;|For testing numbers when they move to another tile when
+	BNE .Up			;|the number of digits changes.
+	BIT.b #%00000100	;|UP/DOWN = FirstNumb
+	BNE .Down		;|Left/RIGHT = SecondNumb
 	BRA +
 	
 	.Up
 	REP #$20
-	LDA $60
+	LDA !Freeram_FirstNumb
 	INC A
-	STA $60
+	STA !Freeram_FirstNumb
 	SEP #$20
 	BRA +
 	
 	.Down
 	REP #$20
-	LDA $60
+	LDA !Freeram_FirstNumb
 	DEC A
-	STA $60
+	STA !Freeram_FirstNumb
 	SEP #$20
 	
 	+
@@ -59,44 +63,48 @@ main:
 	
 	.Left
 	REP #$20
-	LDA $62
+	LDA !Freeram_SecondNumb
 	INC A
-	STA $62
+	STA !Freeram_SecondNumb
 	SEP #$20
 	BRA +
 	
 	.Right
 	REP #$20
-	LDA $62
+	LDA !Freeram_SecondNumb
 	DEC A
-	STA $62
+	STA !Freeram_SecondNumb
 	SEP #$20
 	
 	+
 	
 	.StatusBarRemoveFrozenTiles
-	LDA #$FC
-	LDX.b #(!MaxChar-1)*!StatusbarFormat
+	LDA #$FC							;\Clear out tiles so if the digit
+	LDX.b #(!MaxChar-1)*!StatusbarFormat				;|were to disappear, does not leave
 	-
-	if !AlignMode == 0
-		STA !StatusBarPos,x
-	else
-		STA !StatusBarPos-((!MaxChar-1)*!StatusbarFormat),x
-	endif
-	DEX #2
-	BPL -
+	if !AlignMode == 0						;|duplicated digits or frozen tiles.
+		STA !StatusBarPos,x					;|
+	else								;|
+		STA !StatusBarPos-((!MaxChar-1)*!StatusbarFormat),x	;|
+	endif								;|
+	DEX #2								;|
+	BPL -								;/
 	
 	.WriteStatusBar
-	LDA $60 : STA $00			;\First number HEX->DEC
-	LDA $61 : STA $01			;|
+	LDA !Freeram_FirstNumb			;\First number HEX->DEC
+	STA $00					;|
+	LDA !Freeram_FirstNumb+1		;|
+	STA $01					;|
 	JSL Routines_ConvertToDigits		;/
 	LDX #$00				;>Initialize string position
-	JSL Routines_SupressLeadingZeros		;>Place only the necessary digits in the string table
+	JSL Routines_SupressLeadingZeros	;>Place only the necessary digits in the string table
 	LDA #$26				;\The number separator (its "X" by default, acting as a "/")
 	STA !Scratchram_CharacterTileTable,x	;/
 	INX					;>Increment X to write next number preceding it
-	LDA $62 : STA $00			;\Do the same thing as above, this time without initalizing X
-	LDA $63 : STA $01			;|so that it places the second number after the "/".
+	LDA !Freeram_SecondNumb			;\Do the same thing as above, this time without initalizing X
+	STA $00					;|so that it places the second number after the "/".
+	LDA !Freeram_SecondNumb+1		;|
+	STA $01					;|
 	JSL Routines_ConvertToDigits		;|
 	JSL Routines_SupressLeadingZeros	;/
 	CPX.b #!MaxChar+1			;\If there are more characters than the max, skip status bar write.
